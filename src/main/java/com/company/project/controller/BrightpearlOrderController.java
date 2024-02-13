@@ -21,7 +21,6 @@ public class BrightpearlOrderController {
         results.add("order1");
         results.add("order2");
 
-
         return results;
     }
 }

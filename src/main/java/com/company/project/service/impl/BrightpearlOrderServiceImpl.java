@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSON;
 import com.company.project.entity.rest.*;
 import com.company.project.service.BrightpearlOrderService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,8 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
     private RestTemplate restTemplate;
 
     private static final String orderListUrl = "https://use1.brightpearlconnect.com/public-api/" +
-            "queenofthronestest/order-service/order-search?" +
-            "contactId={contactId}&orderTypeNames={orderTypeNames}&orderStatusNames={orderStatusNames}";
+            "queenofthronestest/order-service/order-search?";
+//            "contactId={contactId}&orderTypeNames={orderTypeNames}&orderStatusNames={orderStatusNames}";
 
     private static final String orderUrl = "https://use1.brightpearlconnect.com/public-api/" +
             "queenofthronestest/order-service/order/";
@@ -47,22 +48,27 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         // Prepare order list URL variables
-        Map<String, String> urlVariables = new HashMap<>();
-        urlVariables.put("contactId", req.getContactId());
-        urlVariables.put("orderTypeNames", req.getOrderTypeNames());
-        urlVariables.put("orderStatusNames", req.getOrderStatusNames());
+//        Map<String, String> urlVariables = new HashMap<>();
+//        urlVariables.put("contactId", req.getContactId());
+//        urlVariables.put("orderTypeNames", req.getOrderTypeNames());
+//        urlVariables.put("orderStatusNames", req.getOrderStatusNames());
+        StringBuilder urlSb = new StringBuilder();
+        urlSb.append(orderListUrl);
+        urlSb.append(StringUtils.isEmpty(req.getCreatedById()) ?
+                StringUtils.EMPTY : "createdById=" + req.getCreatedById());
+        urlSb.append(StringUtils.isEmpty(req.getOrderPaymentStatusId()) ?
+                StringUtils.EMPTY : "&orderPaymentStatusId=" + req.getOrderPaymentStatusId());
+
         // Make the order list call
         log.info("BrightpearlController.getBatchOrder to call order list API and the url is :{}, " +
-                        "and the request type is {} and the params is {}",
-                orderListUrl,
+                        "and the request type is {} and the params is {}", urlSb,
                 HttpMethod.GET.name(),
                 JSON.toJSONString(entity));
 
-        ResponseEntity<BrightpearlOrdersRes> response = restTemplate.exchange(orderListUrl,
+        ResponseEntity<BrightpearlOrdersRes> response = restTemplate.exchange(urlSb.toString(),
                 HttpMethod.GET,
                 entity,
-                BrightpearlOrdersRes.class,
-                urlVariables);
+                BrightpearlOrdersRes.class);
         log.info("BrightpearlController.getBatchOrder to call order list API and the response is :{}",
                 JSON.toJSONString(response));
         BrightpearlOrdersRes body = response.getBody();
@@ -75,21 +81,22 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         }
         String joinedOrderIds = orderIds.stream()
                 .collect(Collectors.joining(","));
-        StringBuilder urlSb = new StringBuilder();
-
-        urlSb.append(orderUrl);
-        urlSb.append(joinedOrderIds);
+        StringBuilder orderUrlSb = new StringBuilder();
+        orderUrlSb.append(orderUrl);
+        orderUrlSb.append(joinedOrderIds);
         log.info("BrightpearlController.getBatchOrder to call order API and the url is :{} " +
                         "and the request type is {} and the param is {}",
-                urlSb.toString(), HttpMethod.GET.name(), JSON.toJSONString(entity));
+                orderUrlSb, HttpMethod.GET.name(), JSON.toJSONString(entity));
         // Make the order list call
-        ResponseEntity<OrderRes> orderResponse = restTemplate.exchange(urlSb.toString(),
+        ResponseEntity<OrderRes> orderResponse = restTemplate.exchange(orderUrlSb.toString(),
                 HttpMethod.GET,
                 entity,
                 OrderRes.class);
-        if (Objects.isNull(orderResponse)) {
-            return null;
+        OrderRes orderRes = orderResponse.getBody();
+        if (Objects.isNull(orderRes)) {
+            return new OrderRes();
         }
+        orderRes.transfer(orderRes.getResponse());
         return orderResponse.getBody();
     }
 

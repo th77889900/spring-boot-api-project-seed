@@ -14,6 +14,8 @@ public class BrightpearlOrdersReq {
     private String contactId;
     private String orderTypeNames;
     private String orderStatusNames;
+    private String createdById;
+    private String orderPaymentStatusId;
     private String token;
     private String brightpearlDevRef;
     private String brightpearlAppRef;

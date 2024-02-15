@@ -14,8 +14,6 @@ public class BrightpearlOrdersRes {
 
     public static class Response {
         public List<List<String>> results;
-//        public MetaData metaData;
-//        public Reference reference;
 
         public List<List<String>> getResults() {
             return results;

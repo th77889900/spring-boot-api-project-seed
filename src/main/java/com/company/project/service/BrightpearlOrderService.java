@@ -1,6 +1,9 @@
 package com.company.project.service;
 
-import java.util.List;
+import com.company.project.entity.rest.BrightpearlOrdersReq;
+import com.company.project.entity.rest.OrderRes;
+import com.company.project.entity.rest.RefreshAuthReq;
+import com.company.project.entity.rest.RefreshAuthRes;
 
 /**
  * @author : Cody.Teng
@@ -8,6 +11,8 @@ import java.util.List;
  */
 public interface BrightpearlOrderService {
 
-    List<String> getOrders();
+    OrderRes getBatchOrder(BrightpearlOrdersReq req);
+
+    RefreshAuthRes refreshAuth(RefreshAuthReq req);
 
 }

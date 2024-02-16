@@ -96,7 +96,9 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         if (Objects.isNull(orderRes)) {
             return new OrderRes();
         }
-        orderRes.transfer(orderRes.getResponse());
+        orderRes.transferRowMap2List(orderRes.getResponse());
+        orderRes.transferParties2Response(orderRes.getResponse());
+        orderRes.transferRowQtyAndPrice(orderRes.getResponse());
         return orderResponse.getBody();
     }
 

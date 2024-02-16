@@ -38,6 +38,7 @@ public class BrightpearlController {
         if (Objects.isNull(orderRes)) {
             return results;
         }
+        orderRes.setEcshopId(req.getEcshopId());
         results.setData(orderRes);
         log.info("BrightpearlController.getBatchOrder result is :{}",
                 JSON.toJSONString(orderRes));
@@ -50,8 +51,8 @@ public class BrightpearlController {
         RefreshAuthRes refreshAuthRes = brightpearlOrderService.refreshAuth(req);
         log.info("BrightpearlController.refreshAuth url request result is {}", JSON.toJSONString(refreshAuthRes));
         Result<RefreshAuthRes> resResult = new Result<>();
+        refreshAuthRes.setEcshopId(req.getEcshopId());
         resResult.setData(refreshAuthRes);
         return resResult;
     }
-
 }

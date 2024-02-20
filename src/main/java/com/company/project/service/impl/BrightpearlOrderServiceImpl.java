@@ -56,6 +56,7 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
                 StringUtils.EMPTY : "createdById=" + req.getCreatedById());
         urlSb.append(StringUtils.isEmpty(req.getOrderPaymentStatusId()) ?
                 StringUtils.EMPTY : "&orderPaymentStatusId=" + req.getOrderPaymentStatusId());
+        urlSb.append("&orderTypeId=1,2");
 
         // Make the order list call
         log.info("BrightpearlController.getBatchOrder to call order list API and the url is :{}, " +

@@ -9,6 +9,7 @@ import lombok.Data;
 @Data
 public class OrderCloseReq {
     private String token;
+    private String ecshopId;
     private String brightpearlDevRef;
     private String brightpearlAppRef;
     private String orderId;

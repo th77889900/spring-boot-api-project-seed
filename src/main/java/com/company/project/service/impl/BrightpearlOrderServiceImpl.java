@@ -10,9 +10,9 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.awt.print.PrinterGraphics;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,16 +27,21 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
     @Autowired
     private RestTemplate restTemplate;
 
-    private static final String orderListUrl = "https://use1.brightpearlconnect.com/public-api/" +
-            "queenofthronestest/order-service/order-search?";
+    private static final String host = "https://use1.brightpearlconnect.com/public-api/";
 
-    private static final String orderUrl = "https://use1.brightpearlconnect.com/public-api/" +
-            "queenofthronestest/order-service/order/";
+    private static final String orderListPath = "/order-service/order-search?";
+
+    private static final String orderPath = "/order-service/order/";
+
+    private static final String orderClosePath = "/order-service/sales-order/%s/close";
+
+//    private static final String orderUrl = "https://use1.brightpearlconnect.com/public-api/" +
+//            "queenofthronestest/order-service/order/";
 
     private static final String url = "https://use1.brightpearlconnect.com/oauth/token";
 
-    private static final String orderCloseUrl = "https://use1.brightpearlconnect.com/public-api/" +
-            "queenofthronestest/order-service/sales-order/%s/close";
+//    private static final String orderCloseUrl = "https://use1.brightpearlconnect.com/public-api/" +
+//            "queenofthronestest/order-service/sales-order/%s/close";
 
     @Override
     public OrderRes getBatchOrder(BrightpearlOrdersReq req) {
@@ -51,12 +56,14 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         StringBuilder urlSb = new StringBuilder();
-        urlSb.append(orderListUrl);
+        urlSb.append(host);
+        urlSb.append(req.getEcshopId());
+        urlSb.append(orderListPath);
+        urlSb.append("orderTypeId=1,2");
         urlSb.append(StringUtils.isEmpty(req.getCreatedById()) ?
-                StringUtils.EMPTY : "createdById=" + req.getCreatedById());
+                StringUtils.EMPTY : "&createdById=" + req.getCreatedById());
         urlSb.append(StringUtils.isEmpty(req.getOrderPaymentStatusId()) ?
                 StringUtils.EMPTY : "&orderPaymentStatusId=" + req.getOrderPaymentStatusId());
-        urlSb.append("&orderTypeId=1,2");
 
         // Make the order list call
         log.info("BrightpearlController.getBatchOrder to call order list API and the url is :{}, " +
@@ -81,7 +88,9 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         String joinedOrderIds = orderIds.stream()
                 .collect(Collectors.joining(","));
         StringBuilder orderUrlSb = new StringBuilder();
-        orderUrlSb.append(orderUrl);
+        orderUrlSb.append(host);
+        orderUrlSb.append(req.getEcshopId());
+        orderUrlSb.append(orderPath);
         orderUrlSb.append(joinedOrderIds);
         log.info("BrightpearlController.getBatchOrder to call order API and the url is :{} " +
                         "and the request type is {} and the param is {}",
@@ -129,7 +138,12 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         headers.add("brightpearl-dev-ref", req.getBrightpearlDevRef());
         headers.add("brightpearl-app-ref", req.getBrightpearlAppRef());
 
-        String baseUrl = String.format(orderCloseUrl, req.getOrderId());
+        StringBuilder orderCloseUrl = new StringBuilder();
+        orderCloseUrl.append(host);
+        orderCloseUrl.append(req.getEcshopId());
+        orderCloseUrl.append(orderClosePath);
+
+        String baseUrl = String.format(orderCloseUrl.toString(), req.getOrderId());
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
         log.info("BrightpearlController.refreshAuth url is {}, and the request type is {} and the param is {}",

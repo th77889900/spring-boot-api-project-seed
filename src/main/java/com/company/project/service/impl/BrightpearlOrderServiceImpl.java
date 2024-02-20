@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -28,12 +29,14 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
 
     private static final String orderListUrl = "https://use1.brightpearlconnect.com/public-api/" +
             "queenofthronestest/order-service/order-search?";
-//            "contactId={contactId}&orderTypeNames={orderTypeNames}&orderStatusNames={orderStatusNames}";
 
     private static final String orderUrl = "https://use1.brightpearlconnect.com/public-api/" +
             "queenofthronestest/order-service/order/";
 
     private static final String url = "https://use1.brightpearlconnect.com/oauth/token";
+
+    private static final String orderCloseUrl = "https://use1.brightpearlconnect.com/public-api/" +
+            "queenofthronestest/order-service/sales-order/%s/close";
 
     @Override
     public OrderRes getBatchOrder(BrightpearlOrdersReq req) {
@@ -47,11 +50,6 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         // Use HttpEntity to encapsulate headers, no body required for GET
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        // Prepare order list URL variables
-//        Map<String, String> urlVariables = new HashMap<>();
-//        urlVariables.put("contactId", req.getContactId());
-//        urlVariables.put("orderTypeNames", req.getOrderTypeNames());
-//        urlVariables.put("orderStatusNames", req.getOrderStatusNames());
         StringBuilder urlSb = new StringBuilder();
         urlSb.append(orderListUrl);
         urlSb.append(StringUtils.isEmpty(req.getCreatedById()) ?
@@ -96,10 +94,8 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         if (Objects.isNull(orderRes)) {
             return new OrderRes();
         }
-        orderRes.transferRowMap2List(orderRes.getResponse());
-        orderRes.transferParties2Response(orderRes.getResponse());
-        orderRes.transferRowQtyAndPrice(orderRes.getResponse());
-        return orderResponse.getBody();
+
+        return orderRes.transfer(orderRes);
     }
 
     @Override
@@ -119,4 +115,36 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         ResponseEntity<RefreshAuthRes> response = restTemplate.postForEntity(url, entity, RefreshAuthRes.class);
         return response.getBody();
     }
+
+    @Override
+    public String orderClose(OrderCloseReq req) {
+        log.info("BrightpearlOrderServiceImpl.orderClose ...");
+        if (StringUtils.isEmpty(req.getOrderId())) {
+            return "order id is empty";
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.add("Authorization", "Bearer " + req.getToken());
+        headers.add("brightpearl-dev-ref", req.getBrightpearlDevRef());
+        headers.add("brightpearl-app-ref", req.getBrightpearlAppRef());
+
+        String baseUrl = String.format(orderCloseUrl, req.getOrderId());
+        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
+        log.info("BrightpearlController.refreshAuth url is {}, and the request type is {} and the param is {}",
+                url, HttpMethod.POST.name(), JSON.toJSONString(entity));
+        ResponseEntity<String> response = null;
+        try {
+            response = restTemplate.postForEntity(baseUrl, entity, String.class);
+        } catch (Exception e) {
+            log.error("BrightpearlOrderServiceImpl.orderClose url response error is {}, url is {} and the param is {} , and the response is {}",
+                    e, baseUrl, JSON.toJSONString(entity), JSON.toJSONString(response));
+            return e.getMessage();
+        }
+        log.info("BrightpearlOrderServiceImpl.orderClose url response is {}, and the param is {} , and the response is {}",
+                baseUrl, JSON.toJSONString(entity), JSON.toJSONString(response));
+        return "OK";
+    }
+
+
 }

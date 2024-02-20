@@ -2,10 +2,8 @@ package com.company.project.controller;
 
 import com.alibaba.fastjson2.JSON;
 import com.company.project.core.Result;
-import com.company.project.entity.rest.BrightpearlOrdersReq;
-import com.company.project.entity.rest.OrderRes;
-import com.company.project.entity.rest.RefreshAuthReq;
-import com.company.project.entity.rest.RefreshAuthRes;
+import com.company.project.core.ResultCode;
+import com.company.project.entity.rest.*;
 import com.company.project.service.BrightpearlOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +51,20 @@ public class BrightpearlController {
         Result<RefreshAuthRes> resResult = new Result<>();
         refreshAuthRes.setEcshopId(req.getEcshopId());
         resResult.setData(refreshAuthRes);
+        return resResult;
+    }
+
+    @PostMapping("/order/close")
+    public Result<String> orderClose(@RequestBody OrderCloseReq req) {
+        log.info("BrightpearlController.refreshAuth req is {}", JSON.toJSONString(req));
+        String result = brightpearlOrderService.orderClose(req);
+        Result<String> resResult = new Result<>();
+        if (result.equals("OK")) {
+            resResult.setData(result);
+        }
+        log.info("BrightpearlController.refreshAuth url request result exception is {}", result);
+        resResult.setMessage(result);
+        resResult.setCode(ResultCode.FAIL);
         return resResult;
     }
 }

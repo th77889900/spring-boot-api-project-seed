@@ -39,13 +39,24 @@ public class OrderRes {
         private String countryIsoCode;
         private String createdOn;
         private String updateOn;
-        private String oprSeqflag;
-        private String organizationId;
         private String ecShopId;
         private String id;
         private Parties parties;
+        private BigDecimal totalAmount;
+        private TotalValue totalValue;
         private Map<String, OrderRow> orderRows;
         private List<OrderRow> orderRowList;
+    }
+
+    @Data
+    public static class TotalValue {
+        private Double net;
+        private Double taxAmount;
+        private Double baseNet;
+        private Double baseTaxAmount;
+        private Double baseTotal;
+        private Double total;
+
     }
 
 
@@ -56,9 +67,11 @@ public class OrderRes {
         private String productName;
         private String productSku;
         private BigDecimal qty;
-        private BigDecimal itemPrice;
+        private BigDecimal itemCostValue;
+        private BigDecimal productPriceValue;
         private Quantity quantity;
         private ItemCost itemCost;
+        private ProductPrice productPrice;
     }
 
     @Data
@@ -68,6 +81,12 @@ public class OrderRes {
 
     @Data
     public static class ItemCost {
+        private String currencyCode;
+        private Double value;
+    }
+
+    @Data
+    public static class ProductPrice {
         private String currencyCode;
         private Double value;
     }
@@ -168,11 +187,46 @@ public class OrderRes {
                     continue;
                 }
                 Double value = itemCost.value;
-                BigDecimal price = new BigDecimal(value);
-                price = price.setScale(2, RoundingMode.HALF_UP);
-                row.setItemPrice(price);
+                BigDecimal cost = new BigDecimal(value);
+                cost = cost.setScale(2, RoundingMode.HALF_UP);
+                row.setItemCostValue(cost);
+                ProductPrice productPrice = row.getProductPrice();
+                if (Objects.isNull(productPrice)) {
+                    continue;
+                }
+                Double price = productPrice.value;
+                BigDecimal proPrice = new BigDecimal(price);
+                proPrice = proPrice.setScale(2, RoundingMode.HALF_UP);
+                row.setProductPriceValue(proPrice);
             }
         }
     }
+
+    public void transferTotal2TotalAmount(List<OrderResponse> orderResponses) {
+        if (CollectionUtils.isEmpty(orderResponses)) {
+            return;
+        }
+        for (OrderResponse response : orderResponses) {
+            if (Objects.isNull(response.getTotalValue())) {
+                continue;
+            }
+            TotalValue totalValue = response.getTotalValue();
+            Double total = totalValue.total;
+            if (Objects.isNull(total)) {
+                continue;
+            }
+            BigDecimal totalAmount = new BigDecimal(total).setScale(2, RoundingMode.HALF_UP);
+            response.setTotalAmount(totalAmount);
+        }
+    }
+
+    public OrderRes transfer(OrderRes orderRes) {
+        orderRes.transferRowMap2List(orderRes.getResponse());
+        orderRes.transferParties2Response(orderRes.getResponse());
+        orderRes.transferRowQtyAndPrice(orderRes.getResponse());
+        orderRes.transferTotal2TotalAmount(orderRes.getResponse());
+        return orderRes;
+    }
+
 
 }

@@ -46,6 +46,7 @@ public class OrderRes {
         private TotalValue totalValue;
         private Map<String, OrderRow> orderRows;
         private List<OrderRow> orderRowList;
+        private String warehouseId;
     }
 
     @Data

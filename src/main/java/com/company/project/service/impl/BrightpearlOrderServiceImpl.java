@@ -1,20 +1,21 @@
 package com.company.project.service.impl;
 
 import com.alibaba.fastjson2.JSON;
+import com.company.project.core.OrderStatus;
 import com.company.project.entity.rest.*;
 import com.company.project.service.BrightpearlOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.awt.print.PrinterGraphics;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author : Cody.Teng
@@ -27,18 +28,26 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
     @Autowired
     private RestTemplate restTemplate;
 
-    private static final String host = "https://use1.brightpearlconnect.com/public-api/";
+    @Value("${darwynn.warehouse.id}")
+    private String wareHouseIdVal;
 
-    private static final String orderListPath = "/order-service/order-search?";
+    @Value("${Brightpearl.url.host}")
+    private String host;
 
-    private static final String orderPath = "/order-service/order/";
+    @Value("${Brightpearl.url.orderListPath}")
+    private String orderListPath;
 
-    private static final String orderClosePath = "/order-service/sales-order/%s/close";
+    @Value("${Brightpearl.url.orderPath}")
+    private String orderPath;
+
+    @Value("${Brightpearl.url.orderClosePath}")
+    private String orderClosePath;
 
 //    private static final String orderUrl = "https://use1.brightpearlconnect.com/public-api/" +
 //            "queenofthronestest/order-service/order/";
 
-    private static final String url = "https://use1.brightpearlconnect.com/oauth/token";
+    @Value("${Brightpearl.url.refresh.token}")
+    private String refreshTokenUrl;
 
 //    private static final String orderCloseUrl = "https://use1.brightpearlconnect.com/public-api/" +
 //            "queenofthronestest/order-service/sales-order/%s/close";
@@ -59,7 +68,7 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         urlSb.append(host);
         urlSb.append(req.getEcshopId());
         urlSb.append(orderListPath);
-        urlSb.append("orderTypeId=1,2");
+        urlSb.append("orderTypeId=1");
         urlSb.append(StringUtils.isEmpty(req.getCreatedById()) ?
                 StringUtils.EMPTY : "&createdById=" + req.getCreatedById());
         urlSb.append(StringUtils.isEmpty(req.getOrderPaymentStatusId()) ?
@@ -78,15 +87,35 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         log.info("BrightpearlController.getBatchOrder to call order list API and the response is :{}",
                 JSON.toJSONString(response));
         BrightpearlOrdersRes body = response.getBody();
+        if (Objects.isNull(body)) {
+            return null;
+        }
         BrightpearlOrdersRes.Response bodyResponse = body.getResponse();
         List<List<String>> resultList = bodyResponse.results;
+        if (CollectionUtils.isEmpty(resultList)) {
+            log.info("BrightpearlController.getBatchOrder to call order list API and the response body is null");
+            return null;
+        }
         Set<String> orderIds = new TreeSet<>();
         for (List<String> order : resultList) {
             String orderId = order.get(0);
+            String orderStatus = order.get(3);
+            // todo modify
+            List<String> createCodes = OrderStatus.getCreateCodes();
+            // 只需要手机下单和网站下单的数据
+            if (StringUtils.isEmpty(orderStatus) || !createCodes.contains(orderStatus)) {
+                continue;
+            }
             orderIds.add(orderId);
         }
-        String joinedOrderIds = orderIds.stream()
-                .collect(Collectors.joining(","));
+
+        if (CollectionUtils.isEmpty(orderIds)) {
+            log.info("BrightpearlController.getBatchOrder to call orders and handle it ," +
+                    "but the result of order id is empty");
+            return null;
+        }
+
+        String joinedOrderIds = String.join(",", orderIds);
         StringBuilder orderUrlSb = new StringBuilder();
         orderUrlSb.append(host);
         orderUrlSb.append(req.getEcshopId());
@@ -102,9 +131,30 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
                 OrderRes.class);
         OrderRes orderRes = orderResponse.getBody();
         if (Objects.isNull(orderRes)) {
-            return new OrderRes();
+            log.info("BrightpearlController.getBatchOrder to call order API by order ids {} " +
+                    "and the response is null", joinedOrderIds);
+            return null;
         }
-
+        List<OrderRes.OrderResponse> resResponse = orderRes.getResponse();
+        if (CollectionUtils.isEmpty(resResponse)) {
+            log.info("BrightpearlController.getBatchOrder to call order API by order ids {} " +
+                    "and the response body list is empty", joinedOrderIds);
+            return null;
+        }
+        List<OrderRes.OrderResponse> resultOrders = new ArrayList<>();
+        for (OrderRes.OrderResponse orderDetail : resResponse) {
+            String warehouseId = orderDetail.getWarehouseId();
+            // 只获取darwynn（id 13）仓库的的数据
+            if (StringUtils.isEmpty(warehouseId) || !warehouseId.equals(wareHouseIdVal)) {
+                continue;
+            }
+            resultOrders.add(orderDetail);
+        }
+        if (CollectionUtils.isEmpty(resultOrders)) {
+            log.info("BrightpearlController.getBatchOrder to call order API but there is not have darwynn order");
+            return null;
+        }
+        orderRes.setResponse(resultOrders);
         return orderRes.transfer(orderRes);
     }
 
@@ -121,8 +171,8 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
 
         HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
         log.info("BrightpearlController.refreshAuth url is {}, and the request type is {} and the param is {}",
-                url, HttpMethod.POST.name(), JSON.toJSONString(entity));
-        ResponseEntity<RefreshAuthRes> response = restTemplate.postForEntity(url, entity, RefreshAuthRes.class);
+                refreshTokenUrl, HttpMethod.POST.name(), JSON.toJSONString(entity));
+        ResponseEntity<RefreshAuthRes> response = restTemplate.postForEntity(refreshTokenUrl, entity, RefreshAuthRes.class);
         return response.getBody();
     }
 
@@ -138,16 +188,13 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         headers.add("brightpearl-dev-ref", req.getBrightpearlDevRef());
         headers.add("brightpearl-app-ref", req.getBrightpearlAppRef());
 
-        StringBuilder orderCloseUrl = new StringBuilder();
-        orderCloseUrl.append(host);
-        orderCloseUrl.append(req.getEcshopId());
-        orderCloseUrl.append(orderClosePath);
+        String orderCloseUrl = host + req.getEcshopId() + orderClosePath;
 
-        String baseUrl = String.format(orderCloseUrl.toString(), req.getOrderId());
+        String baseUrl = String.format(orderCloseUrl, req.getOrderId());
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
         log.info("BrightpearlController.refreshAuth url is {}, and the request type is {} and the param is {}",
-                url, HttpMethod.POST.name(), JSON.toJSONString(entity));
+                baseUrl, HttpMethod.POST.name(), JSON.toJSONString(entity));
         ResponseEntity<String> response = null;
         try {
             response = restTemplate.postForEntity(baseUrl, entity, String.class);
@@ -160,6 +207,4 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
                 baseUrl, JSON.toJSONString(entity), JSON.toJSONString(response));
         return "OK";
     }
-
-
 }

@@ -34,6 +34,8 @@ public class BrightpearlController {
         OrderRes orderRes = brightpearlOrderService.getBatchOrder(req);
         Result<OrderRes> results = new Result<>();
         if (Objects.isNull(orderRes)) {
+            results.setCode(ResultCode.WARN);
+            results.setMessage("data is null");
             return results;
         }
         orderRes.setEcshopId(req.getEcshopId());
@@ -61,6 +63,7 @@ public class BrightpearlController {
         Result<String> resResult = new Result<>();
         if (result.equals("OK")) {
             resResult.setData(result);
+            return resResult;
         }
         log.info("BrightpearlController.refreshAuth url request result exception is {}", result);
         resResult.setMessage(result);

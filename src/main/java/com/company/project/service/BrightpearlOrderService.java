@@ -1,5 +1,6 @@
 package com.company.project.service;
 
+import com.company.project.core.Result;
 import com.company.project.entity.rest.*;
 
 /**

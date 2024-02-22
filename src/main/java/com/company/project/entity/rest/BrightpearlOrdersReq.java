@@ -20,5 +20,6 @@ public class BrightpearlOrdersReq {
     private String brightpearlDevRef;
     private String brightpearlAppRef;
     private String ecshopId;
+    private String wareHouseId;
 
 }

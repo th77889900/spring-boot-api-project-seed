@@ -28,8 +28,8 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${darwynn.warehouse.id}")
-    private String wareHouseIdVal;
+//    @Value("${darwynn.warehouse.id}")
+//    private String wareHouseIdVal;
 
     @Value("${Brightpearl.url.host}")
     private String host;
@@ -138,7 +138,7 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         for (OrderRes.OrderResponse orderDetail : resResponse) {
             String warehouseId = orderDetail.getWarehouseId();
             // 只获取darwynn（id 13）仓库的的数据
-            if (StringUtils.isEmpty(warehouseId) || !warehouseId.equals(wareHouseIdVal)) {
+            if (StringUtils.isEmpty(warehouseId) || !warehouseId.equals(req.getWareHouseId())) {
                 continue;
             }
             resultOrders.add(orderDetail);

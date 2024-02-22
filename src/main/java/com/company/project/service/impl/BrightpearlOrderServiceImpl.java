@@ -94,7 +94,6 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         for (List<String> order : resultList) {
             String orderId = order.get(0);
             String orderStatus = order.get(3);
-            // todo modify
             List<String> createCodes = OrderStatus.getCreateCodes();
             // 只需要手机下单和网站下单的数据
             if (StringUtils.isEmpty(orderStatus) || !createCodes.contains(orderStatus)) {

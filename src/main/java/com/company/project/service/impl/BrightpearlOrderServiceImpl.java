@@ -43,14 +43,8 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
     @Value("${Brightpearl.url.orderClosePath}")
     private String orderClosePath;
 
-//    private static final String orderUrl = "https://use1.brightpearlconnect.com/public-api/" +
-//            "queenofthronestest/order-service/order/";
-
     @Value("${Brightpearl.url.refresh.token}")
     private String refreshTokenUrl;
-
-//    private static final String orderCloseUrl = "https://use1.brightpearlconnect.com/public-api/" +
-//            "queenofthronestest/order-service/sales-order/%s/close";
 
     @Override
     public OrderRes getBatchOrder(BrightpearlOrdersReq req) {

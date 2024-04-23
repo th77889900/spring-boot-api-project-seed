@@ -58,14 +58,29 @@ public class BrightpearlController {
 
     @PostMapping("/order/close")
     public Result<String> orderClose(@RequestBody OrderCloseReq req) {
-        log.info("BrightpearlController.refreshAuth req is {}", JSON.toJSONString(req));
+        log.info("BrightpearlController.orderClose req is {}", JSON.toJSONString(req));
         String result = brightpearlOrderService.orderClose(req);
         Result<String> resResult = new Result<>();
         if (result.equals("OK")) {
             resResult.setData(result);
             return resResult;
         }
-        log.info("BrightpearlController.refreshAuth url request result exception is {}", result);
+        log.info("BrightpearlController.orderClose url request result exception is {}", result);
+        resResult.setMessage(result);
+        resResult.setCode(ResultCode.FAIL);
+        return resResult;
+    }
+
+    @PostMapping("/inv/sync")
+    public Result<String> invSync(@RequestBody InvSyncReq req) {
+        log.info("BrightpearlController.invSync req is {}", JSON.toJSONString(req));
+        String result = brightpearlOrderService.invSync(req);
+        Result<String> resResult = new Result<>();
+        if (result.equals("OK")) {
+            resResult.setData(result);
+            return resResult;
+        }
+        log.info("BrightpearlController.invSync request result exception is {}", result);
         resResult.setMessage(result);
         resResult.setCode(ResultCode.FAIL);
         return resResult;

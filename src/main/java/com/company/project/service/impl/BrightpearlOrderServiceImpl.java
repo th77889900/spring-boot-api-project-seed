@@ -46,6 +46,18 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
     @Value("${Brightpearl.url.refresh.token}")
     private String refreshTokenUrl;
 
+
+    @Value("${Brightpearl.url.inv.sync}")
+    private String invSyncUrl;
+
+    @Value("${Brightpearl.url.inv.sync.path}")
+    private String invSyncPath;
+
+    @Value("${Brightpearl.url.productId.by.sku}")
+    private String productBySkuUrl;
+    @Value("${Brightpearl.url.stock.by.product}")
+    private String stockByProductUrl;
+
     @Override
     public OrderRes getBatchOrder(BrightpearlOrdersReq req) {
 
@@ -199,5 +211,127 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         log.info("BrightpearlOrderServiceImpl.orderClose url response is {}, and the param is {} , and the response is {}",
                 baseUrl, JSON.toJSONString(entity), JSON.toJSONString(response));
         return "OK";
+    }
+
+    @Override
+    public String invSync(InvSyncReq req) {
+        log.info("BrightpearlOrderServiceImpl.invSync ...");
+        if (StringUtils.isEmpty(req.getSku())) {
+            return "param sku is empty";
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.add("Authorization", "Bearer " + req.getToken());
+        headers.add("brightpearl-dev-ref", req.getBrightpearlDevRef());
+        headers.add("brightpearl-app-ref", req.getBrightpearlAppRef());
+
+        // 根据sku获取productId
+        Integer productId = getProductIdBySKU(req.getSku(), headers);
+        if (Objects.isNull(productId)) {
+            return "param sku is " + req.getSku() + " and get product is null";
+        }
+        // 根据productId获取可以可用库存数量
+        Integer inStock = getInStockByProductId(productId, req.getWarehouseId(), headers);
+        // 计算差值
+        int num = req.getQuantity() - inStock;
+
+        if (num == 0) {
+            return "param sku is " + req.getSku() + " and no change in inventory";
+        }
+
+        String invSyncConnect = invSyncUrl + req.getWarehouseId() + invSyncPath;
+
+        MultiValueMap<String, InvSyncParamEntity> map = new LinkedMultiValueMap<>();
+        List<InvSyncParamEntity> paramEntities = new ArrayList<>();
+        InvSyncParamEntity syncParamEntity = new InvSyncParamEntity();
+        syncParamEntity.setLocationId(req.getLocationId());
+        syncParamEntity.setProductId(productId);
+        syncParamEntity.setQuantity(num);
+        syncParamEntity.setReason(num > 0 ? "add stock" : "delete stock");
+        paramEntities.add(syncParamEntity);
+        map.put("corrections", paramEntities);
+
+        HttpEntity<MultiValueMap<String, InvSyncParamEntity>> entity = new HttpEntity<>(map, headers);
+        log.info("BrightpearlController.invSync url is {}, and the request type is {} and the param is {}",
+                invSyncConnect, HttpMethod.POST.name(), JSON.toJSONString(entity));
+        ResponseEntity<String> response = null;
+        try {
+            response = restTemplate.postForEntity(invSyncConnect, entity, String.class);
+        } catch (Exception e) {
+            log.error("BrightpearlOrderServiceImpl.invSync url response error is {}, url is {} and the param is {} , and the response is {}",
+                    e, invSyncConnect, JSON.toJSONString(entity), JSON.toJSONString(response));
+            return e.getMessage();
+        }
+        log.info("BrightpearlOrderServiceImpl.invSync url response is {}, and the param is {} , and the response is {}",
+                invSyncConnect, JSON.toJSONString(entity), JSON.toJSONString(response));
+        return "OK";
+    }
+
+    private Integer getProductIdBySKU(String sku,HttpHeaders headers) {
+        // Use HttpEntity to encapsulate headers, no body required for GET
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        StringBuilder urlSb = new StringBuilder();
+        urlSb.append(productBySkuUrl);
+        urlSb.append(sku);
+        // Make the order list call
+        log.info("getProductIdBySKU to call order list API and the url is :{}, " +
+                        "and the request type is {} and the params is {}", urlSb,
+                HttpMethod.GET.name(),
+                JSON.toJSONString(entity));
+
+        ResponseEntity<BrightpearlOrdersRes> response = restTemplate.exchange(urlSb.toString(),
+                HttpMethod.GET,
+                entity,
+                BrightpearlOrdersRes.class);
+        log.info("getProductIdBySKU to call order list API and the response is :{}",
+                JSON.toJSONString(response));
+        if (Objects.isNull(response.getBody()) ||
+                Objects.isNull(response.getBody().getResponse()) ||
+                CollectionUtils.isEmpty(response.getBody().getResponse().results)) {
+            return null;
+        }
+        List<List<String>> results = response.getBody().getResponse().getResults();
+        List<String> strings = results.get(0);
+        String productId = strings.get(0);
+        if (StringUtils.isEmpty(productId)) {
+            return null;
+        }
+        return Integer.valueOf(productId);
+    }
+
+    private Integer getInStockByProductId(Integer productId, String warehouseId, HttpHeaders headers) {
+        // Use HttpEntity to encapsulate headers, no body required for GET
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        StringBuilder urlSb = new StringBuilder();
+        urlSb.append(stockByProductUrl);
+        urlSb.append(productId);
+        // Make the order list call
+        log.info("getInStockByProductId to call order list API and the url is :{}, " +
+                        "and the request type is {} and the params is {}", urlSb,
+                HttpMethod.GET.name(),
+                JSON.toJSONString(entity));
+
+        ResponseEntity<BrightpearlProductAvailRes> response = restTemplate.exchange(urlSb.toString(),
+                HttpMethod.GET,
+                entity,
+                BrightpearlProductAvailRes.class);
+        log.info("getInStockByProductId to call order list API and the response is :{}",
+                JSON.toJSONString(response));
+        if (Objects.isNull(response.getBody()) ||
+                CollectionUtils.isEmpty(response.getBody().getResponse())) {
+            return null;
+        }
+        Map<String, ProductAvailResEntity> productAvailMap = response.getBody().getResponse();
+        ProductAvailResEntity productAvailResEntity = productAvailMap.get(String.valueOf(productId));
+        if (Objects.isNull(productAvailResEntity)) {
+            return null;
+        }
+        Map<String, StockAvailResEntity> warehouseMap = productAvailResEntity.getWarehouses();
+        if (CollectionUtils.isEmpty(warehouseMap)) {
+            return null;
+        }
+
+        StockAvailResEntity stockEntity = warehouseMap.get(warehouseId);
+        return stockEntity.getInStock();
     }
 }

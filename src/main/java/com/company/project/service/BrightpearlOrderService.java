@@ -1,6 +1,5 @@
 package com.company.project.service;
 
-import com.company.project.core.Result;
 import com.company.project.entity.rest.*;
 
 /**
@@ -15,4 +14,5 @@ public interface BrightpearlOrderService {
 
     String orderClose(OrderCloseReq req);
 
+    String invSync(InvSyncReq req);
 }

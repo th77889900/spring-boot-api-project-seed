@@ -12,4 +12,5 @@ public class InvSyncParamEntity {
     private Integer productId;
     private Integer quantity;
     private String reason;
+    private CostParamInfo cost;
 }

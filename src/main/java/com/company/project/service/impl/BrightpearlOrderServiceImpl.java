@@ -58,6 +58,16 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
     @Value("${Brightpearl.url.stock.by.product}")
     private String stockByProductUrl;
 
+    @Value("${Brightpearl.url.price.list}")
+    private String priceListUrl;
+
+    @Value("${Brightpearl.url.product.value}")
+    private String productValueUrl;
+
+    @Value("${Brightpearl.url.product.value.path}")
+    private String productValuePath;
+
+
     @Override
     public OrderRes getBatchOrder(BrightpearlOrdersReq req) {
 
@@ -226,37 +236,50 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         headers.add("brightpearl-app-ref", req.getBrightpearlAppRef());
 
         // 根据sku获取productId
-        Integer productId = getProductIdBySKU(req.getSku(), headers);
+        Integer productId = getProductIdBySKU(req.getSku(), headers, req.getEcshopId());
         if (Objects.isNull(productId)) {
             return "param sku is " + req.getSku() + " and get product is null";
         }
         // 根据productId获取可以可用库存数量
-        Integer inStock = getInStockByProductId(productId, req.getWarehouseId(), headers);
+        Integer inStock = getInStockByProductId(productId, req.getWarehouseId(), headers, req.getEcshopId());
         // 计算差值
         int num = req.getQuantity() - inStock;
 
-        if (num == 0) {
-            return "param sku is " + req.getSku() + " and no change in inventory";
-        }
-
-        String invSyncConnect = invSyncUrl + req.getWarehouseId() + invSyncPath;
-
-        MultiValueMap<String, InvSyncParamEntity> map = new LinkedMultiValueMap<>();
         List<InvSyncParamEntity> paramEntities = new ArrayList<>();
         InvSyncParamEntity syncParamEntity = new InvSyncParamEntity();
         syncParamEntity.setLocationId(req.getLocationId());
         syncParamEntity.setProductId(productId);
         syncParamEntity.setQuantity(num);
         syncParamEntity.setReason(num > 0 ? "add stock" : "delete stock");
-        paramEntities.add(syncParamEntity);
-        map.put("corrections", paramEntities);
 
+        if (num == 0) {
+            return "param sku is " + req.getSku() + " and no change in inventory";
+        } else if (num > 0) {
+            // 获取当前环境的价格列表信息，根据列表信息id获取cost对应的价格信息id
+            PriceInfoResEntity priceInfo = getPriceList(headers, req.getEcshopId());
+            if (Objects.isNull(priceInfo)) {
+                return "param sku is " + req.getSku() + " get price info is empty";
+            }
+            // 根据商品id 和价格信息id 获取cost 对应的价格
+            CostParamInfo costParamInfo = getValueByProductId(productId, priceInfo.getId(), headers, req.getEcshopId());
+            syncParamEntity.setCost(costParamInfo);
+        }
+        paramEntities.add(syncParamEntity);
+        StringBuilder invSyncConnect = new StringBuilder();
+        invSyncConnect.append(host);
+        invSyncConnect.append(req.getEcshopId());
+        invSyncConnect.append(invSyncUrl);
+        invSyncConnect.append(req.getWarehouseId());
+        invSyncConnect.append(invSyncPath);
+
+        MultiValueMap<String, InvSyncParamEntity> map = new LinkedMultiValueMap<>();
+        map.put("corrections", paramEntities);
         HttpEntity<MultiValueMap<String, InvSyncParamEntity>> entity = new HttpEntity<>(map, headers);
         log.info("BrightpearlController.invSync url is {}, and the request type is {} and the param is {}",
                 invSyncConnect, HttpMethod.POST.name(), JSON.toJSONString(entity));
         ResponseEntity<String> response = null;
         try {
-            response = restTemplate.postForEntity(invSyncConnect, entity, String.class);
+            response = restTemplate.postForEntity(invSyncConnect.toString(), entity, String.class);
         } catch (Exception e) {
             log.error("BrightpearlOrderServiceImpl.invSync url response error is {}, url is {} and the param is {} , and the response is {}",
                     e, invSyncConnect, JSON.toJSONString(entity), JSON.toJSONString(response));
@@ -267,12 +290,15 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         return "OK";
     }
 
-    private Integer getProductIdBySKU(String sku,HttpHeaders headers) {
+    private Integer getProductIdBySKU(String sku, HttpHeaders headers, String ecshopId) {
         // Use HttpEntity to encapsulate headers, no body required for GET
         HttpEntity<String> entity = new HttpEntity<>(headers);
         StringBuilder urlSb = new StringBuilder();
+        urlSb.append(host);
+        urlSb.append(ecshopId);
         urlSb.append(productBySkuUrl);
         urlSb.append(sku);
+
         // Make the order list call
         log.info("getProductIdBySKU to call order list API and the url is :{}, " +
                         "and the request type is {} and the params is {}", urlSb,
@@ -299,10 +325,11 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         return Integer.valueOf(productId);
     }
 
-    private Integer getInStockByProductId(Integer productId, String warehouseId, HttpHeaders headers) {
-        // Use HttpEntity to encapsulate headers, no body required for GET
+    private Integer getInStockByProductId(Integer productId, String warehouseId, HttpHeaders headers, String ecshopId) {
         HttpEntity<String> entity = new HttpEntity<>(headers);
         StringBuilder urlSb = new StringBuilder();
+        urlSb.append(host);
+        urlSb.append(ecshopId);
         urlSb.append(stockByProductUrl);
         urlSb.append(productId);
         // Make the order list call
@@ -333,5 +360,90 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
 
         StockAvailResEntity stockEntity = warehouseMap.get(warehouseId);
         return stockEntity.getInStock();
+    }
+
+
+    private PriceInfoResEntity getPriceList(HttpHeaders headers, String ecshopId) {
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        StringBuilder urlSb = new StringBuilder();
+        urlSb.append(host);
+        urlSb.append(ecshopId);
+        urlSb.append(priceListUrl);
+        // Make the order list call
+        log.info("getPriceList to call order list API and the url is :{}, and the request type is {} and the params is {}",
+                urlSb,
+                HttpMethod.GET.name(),
+                JSON.toJSONString(entity));
+        ResponseEntity<BrightpearlPriceInfoRes> response = restTemplate.exchange(urlSb.toString(),
+                HttpMethod.GET,
+                entity,
+                BrightpearlPriceInfoRes.class);
+        log.info("getProductIdBySKU to call order list API and the response is :{}",
+                JSON.toJSONString(response));
+        if (Objects.isNull(response.getBody()) || CollectionUtils.isEmpty(response.getBody().getResponse())) {
+            return null;
+        }
+        List<PriceInfoResEntity> results = response.getBody().getResponse();
+        for (PriceInfoResEntity result : results) {
+            String code = result.getCode();
+            if ("COST".equals(code)) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+
+    private CostParamInfo getValueByProductId(Integer productId, Integer priceId, HttpHeaders headers, String ecshopId) {
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        StringBuilder urlSb = new StringBuilder();
+        urlSb.append(host);
+        urlSb.append(ecshopId);
+        urlSb.append(productValueUrl);
+        urlSb.append(productId);
+        urlSb.append(productValuePath);
+        urlSb.append(priceId);
+
+        log.info("getValueByProductId to call order list API and the url is :{}, " +
+                        "and the request type is {} and the params is {}", urlSb,
+                HttpMethod.GET.name(),
+                JSON.toJSONString(entity));
+
+        ResponseEntity<ProductPriceRes> response = restTemplate.exchange(urlSb.toString(),
+                HttpMethod.GET,
+                entity,
+                ProductPriceRes.class);
+        log.info("getValueByProductId to call order list API and the response is :{}",
+                JSON.toJSONString(response));
+        if (Objects.isNull(response.getBody()) || CollectionUtils.isEmpty(response.getBody().getResponse())) {
+            return null;
+        }
+        List<ProductPriceResEntity> results = response.getBody().getResponse();
+        ProductPriceResEntity productPriceResEntity = results.get(0);
+        if (Objects.isNull(productPriceResEntity)) {
+            return null;
+        }
+        List<ProductPriceResEntity.CostInfoList> priceLists = productPriceResEntity.getPriceLists();
+        ProductPriceResEntity.CostInfoList costInfoList = priceLists.get(0);
+        if (Objects.isNull(costInfoList)) {
+            return null;
+        }
+        Map<String, String> quantityPrice = costInfoList.getQuantityPrice();
+        if (CollectionUtils.isEmpty(quantityPrice)) {
+            return null;
+        }
+        CostParamInfo costParamInfo = new CostParamInfo();
+        costParamInfo.setCurrency(costInfoList.getCurrencyCode());
+
+        Collection<String> values = quantityPrice.values();
+        for (String value : values) {
+            if (StringUtils.isEmpty(value)) {
+                continue;
+            }
+            costParamInfo.setValue(value);
+            // 只需要获取一个数据就直接返回
+            return costParamInfo;
+        }
+        return null;
     }
 }

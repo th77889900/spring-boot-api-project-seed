@@ -11,6 +11,7 @@ public class InvSyncReq {
     private String token;
     private String brightpearlDevRef;
     private String brightpearlAppRef;
+    private String ecshopId;
     private String warehouseId;
     private Integer locationId;
     private String sku;

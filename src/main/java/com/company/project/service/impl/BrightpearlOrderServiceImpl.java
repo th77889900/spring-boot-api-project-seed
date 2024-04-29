@@ -262,6 +262,9 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
             }
             // 根据商品id 和价格信息id 获取cost 对应的价格
             CostParamInfo costParamInfo = getValueByProductId(productId, priceInfo.getId(), headers, req.getEcshopId());
+            log.info("BrightpearlOrderServiceImpl.invSync param is {}, and cost param info is {} ",
+                    JSON.toJSONString(req),
+                    JSON.toJSONString(costParamInfo));
             syncParamEntity.setCost(costParamInfo);
         }
         paramEntities.add(syncParamEntity);

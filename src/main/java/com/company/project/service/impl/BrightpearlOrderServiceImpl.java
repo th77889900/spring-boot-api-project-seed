@@ -242,9 +242,12 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         }
         // 根据productId获取可以可用库存数量
         Integer inStock = getInStockByProductId(productId, req.getWarehouseId(), headers, req.getEcshopId());
+        if (Objects.isNull(inStock)) {
+            log.warn("param sku is " + req.getSku() + " and product id is " + productId + " get inStock is null");
+            inStock = 0;
+        }
         // 计算差值
         int num = req.getQuantity() - inStock;
-
         List<InvSyncParamEntity> paramEntities = new ArrayList<>();
         InvSyncParamEntity syncParamEntity = new InvSyncParamEntity();
         syncParamEntity.setLocationId(req.getLocationId());
@@ -262,6 +265,9 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
             }
             // 根据商品id 和价格信息id 获取cost 对应的价格
             CostParamInfo costParamInfo = getValueByProductId(productId, priceInfo.getId(), headers, req.getEcshopId());
+            if (Objects.isNull(costParamInfo)) {
+
+            }
             log.info("BrightpearlOrderServiceImpl.invSync param is {}, and cost param info is {} ",
                     JSON.toJSONString(req),
                     JSON.toJSONString(costParamInfo));
@@ -360,7 +366,6 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         if (CollectionUtils.isEmpty(warehouseMap)) {
             return null;
         }
-
         StockAvailResEntity stockEntity = warehouseMap.get(warehouseId);
         return stockEntity.getInStock();
     }

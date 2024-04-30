@@ -367,6 +367,9 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
             return null;
         }
         StockAvailResEntity stockEntity = warehouseMap.get(warehouseId);
+        if (Objects.isNull(stockEntity)) {
+            return null;
+        }
         return stockEntity.getInStock();
     }
 

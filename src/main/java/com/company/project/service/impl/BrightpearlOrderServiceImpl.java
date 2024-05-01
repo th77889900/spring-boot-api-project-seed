@@ -241,10 +241,7 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         // 根据sku获取productId
         Integer productId = getProductIdByBarcode(req.getSku(), headers, req.getEcshopId());
         if (Objects.isNull(productId)) {
-            productId = getProductIdBySKU(req.getSku(), headers, req.getEcshopId());
-            if (Objects.isNull(productId)) {
-                return "param sku is " + req.getSku() + " and get product is null";
-            }
+            return "param sku is " + req.getSku() + " and get product is null";
         }
 
         // 根据productId获取可以可用库存数量

@@ -399,15 +399,15 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         Map<String, ProductAvailResEntity> productAvailMap = response.getBody().getResponse();
         ProductAvailResEntity productAvailResEntity = productAvailMap.get(String.valueOf(productId));
         if (Objects.isNull(productAvailResEntity)) {
-            return null;
+            return 0;
         }
         Map<String, StockAvailResEntity> warehouseMap = productAvailResEntity.getWarehouses();
         if (CollectionUtils.isEmpty(warehouseMap)) {
-            return null;
+            return 0;
         }
         StockAvailResEntity stockEntity = warehouseMap.get(warehouseId);
         if (Objects.isNull(stockEntity)) {
-            return null;
+            return 0;
         }
         return stockEntity.getInStock();
     }

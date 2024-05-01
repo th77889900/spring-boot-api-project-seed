@@ -55,6 +55,9 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
 
     @Value("${Brightpearl.url.productId.by.sku}")
     private String productBySkuUrl;
+
+    @Value("${Brightpearl.url.productId.by.barcode}")
+    private String productByBarcodeUrl;
     @Value("${Brightpearl.url.stock.by.product}")
     private String stockByProductUrl;
 
@@ -236,10 +239,14 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         headers.add("brightpearl-app-ref", req.getBrightpearlAppRef());
 
         // 根据sku获取productId
-        Integer productId = getProductIdBySKU(req.getSku(), headers, req.getEcshopId());
+        Integer productId = getProductIdByBarcode(req.getSku(), headers, req.getEcshopId());
         if (Objects.isNull(productId)) {
-            return "param sku is " + req.getSku() + " and get product is null";
+            productId = getProductIdBySKU(req.getSku(), headers, req.getEcshopId());
+            if (Objects.isNull(productId)) {
+                return "param sku is " + req.getSku() + " and get product is null";
+            }
         }
+
         // 根据productId获取可以可用库存数量
         Integer inStock = getInStockByProductId(productId, req.getWarehouseId(), headers, req.getEcshopId());
         if (Objects.isNull(inStock)) {
@@ -296,7 +303,42 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         }
         log.info("BrightpearlOrderServiceImpl.invSync url response is {}, and the param is {} , and the response is {}",
                 invSyncConnect, JSON.toJSONString(entity), JSON.toJSONString(response));
-        return "OK";
+        return "sku: " + req.getSku() + " and qty: " + req.getQuantity() + " sync success";
+    }
+
+    private Integer getProductIdByBarcode(String barcode, HttpHeaders headers, String ecshopId) {
+        // Use HttpEntity to encapsulate headers, no body required for GET
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        StringBuilder urlSb = new StringBuilder();
+        urlSb.append(host);
+        urlSb.append(ecshopId);
+        urlSb.append(productByBarcodeUrl);
+        urlSb.append(barcode);
+
+        // Make the order list call
+        log.info("getProductIdByBarcode to call order list API and the url is :{}, " +
+                        "and the request type is {} and the params is {}", urlSb,
+                HttpMethod.GET.name(),
+                JSON.toJSONString(entity));
+
+        ResponseEntity<BrightpearlOrdersRes> response = restTemplate.exchange(urlSb.toString(),
+                HttpMethod.GET,
+                entity,
+                BrightpearlOrdersRes.class);
+        log.info("getProductIdByBarcode to call order list API and the response is :{}",
+                JSON.toJSONString(response));
+        if (Objects.isNull(response.getBody()) ||
+                Objects.isNull(response.getBody().getResponse()) ||
+                CollectionUtils.isEmpty(response.getBody().getResponse().results)) {
+            return null;
+        }
+        List<List<String>> results = response.getBody().getResponse().getResults();
+        List<String> strings = results.get(0);
+        String productId = strings.get(0);
+        if (StringUtils.isEmpty(productId)) {
+            return null;
+        }
+        return Integer.valueOf(productId);
     }
 
     private Integer getProductIdBySKU(String sku, HttpHeaders headers, String ecshopId) {

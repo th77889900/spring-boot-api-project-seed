@@ -2,6 +2,7 @@ package com.company.project.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.company.project.core.OrderStatus;
+import com.company.project.core.PaymentStatus;
 import com.company.project.entity.rest.*;
 import com.company.project.service.BrightpearlOrderService;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author : Cody.Teng
@@ -88,10 +90,13 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         urlSb.append(req.getEcshopId());
         urlSb.append(orderListPath);
         urlSb.append("orderTypeId=1");
+        urlSb.append("&orderShippingStatusId=2");
+        urlSb.append("&orderStockStatusId=1");
+        urlSb.append("&warehouseId=" + req.getWareHouseId());
         urlSb.append(StringUtils.isEmpty(req.getCreatedById()) ?
                 StringUtils.EMPTY : "&createdById=" + req.getCreatedById());
-        urlSb.append(StringUtils.isEmpty(req.getOrderPaymentStatusId()) ?
-                StringUtils.EMPTY : "&orderPaymentStatusId=" + req.getOrderPaymentStatusId());
+//        urlSb.append(StringUtils.isEmpty(req.getOrderPaymentStatusId()) ?
+//                StringUtils.EMPTY : "&orderPaymentStatusId=" + req.getOrderPaymentStatusId());
 
         // Make the order list call
         log.info("BrightpearlController.getBatchOrder to call order list API and the url is :{}, " +
@@ -115,13 +120,26 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
             log.info("BrightpearlController.getBatchOrder to call order list API and the response body is null");
             return null;
         }
-        Set<String> orderIds = new TreeSet<>();
+
+        Set<String> orderIds = new TreeSet<>(new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                return Integer.compare(Integer.parseInt(o1), Integer.parseInt(o2));
+            }
+        });
+
+
         for (List<String> order : resultList) {
             String orderId = order.get(0);
             String orderStatus = order.get(3);
+            String paymentStatus = order.get(8);
             List<String> createCodes = OrderStatus.getCreateCodes();
-            // 只需要手机下单和网站下单的数据
-            if (StringUtils.isEmpty(orderStatus) || !createCodes.contains(orderStatus)) {
+            // 排除订单状态是cancelled 和 back order 并且付款状态是 1 paid 5 NOT_APPLICABLE
+            if (StringUtils.isEmpty(orderStatus) ||
+                    OrderStatus.CANCELLED.getCode().equals(orderStatus) ||
+                    OrderStatus.BACK_ORDER.getCode().equals(orderStatus) ||
+                    !(PaymentStatus.PAID.getCode().equals(paymentStatus) ||
+                            PaymentStatus.NOT_APPLICABLE.getCode().equals(paymentStatus))) {
                 continue;
             }
             orderIds.add(orderId);
@@ -134,6 +152,7 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         }
 
         String joinedOrderIds = String.join(",", orderIds);
+
         StringBuilder orderUrlSb = new StringBuilder();
         orderUrlSb.append(host);
         orderUrlSb.append(req.getEcshopId());

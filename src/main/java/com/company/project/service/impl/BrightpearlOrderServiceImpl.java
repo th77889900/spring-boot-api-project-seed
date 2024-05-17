@@ -146,7 +146,7 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         }
 
         if (CollectionUtils.isEmpty(orderIds)) {
-            log.info("BrightpearlController.getBatchOrder to call orders and handle it ," +
+            log.warn("BrightpearlController.getBatchOrder to call orders and handle it ," +
                     "but the result of order id is empty");
             return null;
         }
@@ -168,13 +168,13 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
                 OrderRes.class);
         OrderRes orderRes = orderResponse.getBody();
         if (Objects.isNull(orderRes)) {
-            log.info("BrightpearlController.getBatchOrder to call order API by order ids {} " +
+            log.warn("BrightpearlController.getBatchOrder to call order API by order ids {} " +
                     "and the response is null", joinedOrderIds);
             return null;
         }
         List<OrderRes.OrderResponse> resResponse = orderRes.getResponse();
         if (CollectionUtils.isEmpty(resResponse)) {
-            log.info("BrightpearlController.getBatchOrder to call order API by order ids {} " +
+            log.warn("BrightpearlController.getBatchOrder to call order API by order ids {} " +
                     "and the response body list is empty", joinedOrderIds);
             return null;
         }
@@ -185,15 +185,40 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
             if (StringUtils.isEmpty(warehouseId) || !warehouseId.equals(req.getWareHouseId())) {
                 continue;
             }
+            Map<String, OrderRes.OrderRow> orderRows = orderDetail.getOrderRows();
+            if (CollectionUtils.isEmpty(orderRows)) {
+                log.warn("BrightpearlController.getBatchOrder there is not have items");
+                continue;
+            }
+            Map<String, OrderRes.OrderRow> rowMap = removeEmptySkuItem(orderRows);
+            orderDetail.setOrderRows(rowMap);
             resultOrders.add(orderDetail);
         }
         if (CollectionUtils.isEmpty(resultOrders)) {
-            log.info("BrightpearlController.getBatchOrder to call order API but there is not have darwynn order");
+            log.warn("BrightpearlController.getBatchOrder to call order API but there is not have darwynn order");
             return null;
         }
         orderRes.setResponse(resultOrders);
         return orderRes.transfer(orderRes);
     }
+
+    /**
+     * Remove items with empty product sku
+     */
+    private Map<String, OrderRes.OrderRow> removeEmptySkuItem(Map<String, OrderRes.OrderRow> orderRows) {
+
+        Map<String, OrderRes.OrderRow> rowMap = new HashMap<>();
+        for (String key : orderRows.keySet()) {
+            OrderRes.OrderRow row = orderRows.get(key);
+            String productSku = row.getProductSku();
+            if (StringUtils.isEmpty(productSku)) {
+                continue;
+            }
+            rowMap.put(key, row);
+        }
+        return rowMap;
+    }
+
 
     @Override
     public RefreshAuthRes refreshAuth(RefreshAuthReq req) {

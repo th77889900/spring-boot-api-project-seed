@@ -89,12 +89,12 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
         urlSb.append(host);
         urlSb.append(req.getEcshopId());
         urlSb.append(orderListPath);
-        urlSb.append("orderTypeId=1");
-        urlSb.append("&orderShippingStatusId=2");
-        urlSb.append("&orderStockStatusId=1");
+//        urlSb.append("orderTypeId=1");
+//        urlSb.append("&orderShippingStatusId=2");
+//        urlSb.append("&orderStockStatusId=1");
         urlSb.append("&warehouseId=" + req.getWareHouseId());
-        urlSb.append(StringUtils.isEmpty(req.getCreatedById()) ?
-                StringUtils.EMPTY : "&createdById=" + req.getCreatedById());
+//        urlSb.append(StringUtils.isEmpty(req.getCreatedById()) ?
+//                StringUtils.EMPTY : "&createdById=" + req.getCreatedById());
 //        urlSb.append(StringUtils.isEmpty(req.getOrderPaymentStatusId()) ?
 //                StringUtils.EMPTY : "&orderPaymentStatusId=" + req.getOrderPaymentStatusId());
 

@@ -137,9 +137,7 @@ public class BrightpearlOrderServiceImpl implements BrightpearlOrderService {
             // 排除订单状态是cancelled 和 back order 并且付款状态是 1 paid 5 NOT_APPLICABLE
             if (StringUtils.isEmpty(orderStatus) ||
                     OrderStatus.CANCELLED.getCode().equals(orderStatus) ||
-                    OrderStatus.BACK_ORDER.getCode().equals(orderStatus) ||
-                    !(PaymentStatus.PAID.getCode().equals(paymentStatus) ||
-                            PaymentStatus.NOT_APPLICABLE.getCode().equals(paymentStatus))) {
+                    OrderStatus.BACK_ORDER.getCode().equals(orderStatus)) {
                 continue;
             }
             orderIds.add(orderId);

@@ -42,7 +42,6 @@ public class BrightpearlController {
         results.setData(orderRes);
         log.info("BrightpearlController.getBatchOrder result is :{}",
                 JSON.toJSONString(orderRes));
-
         return results;
     }
 
